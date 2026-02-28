@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Split Bill — Restaurant</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f0e0c; --surface: #1a1916; --surface2: #232118; --border: #2e2b24;
+    --accent: #e8c84a; --accent2: #d4a843; --red: #e86060; --green: #6dca8a;
+    --text: #f0ead6; --muted: #7a7060;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: "DM Mono", monospace; min-height: 100vh; padding: 2rem 1rem 4rem; }
+  header { text-align: center; margin-bottom: 2rem; }
+  header h1 { font-family: "Playfair Display", serif; font-size: 2.8rem; color: var(--accent); }
+  header p { color: var(--muted); font-size: 0.75rem; margin-top: 0.4rem; letter-spacing: 0.12em; text-transform: uppercase; }
+  .container { max-width: 1200px; margin: 0 auto; }
+
+  /* ── Tabs ── */
+  .tab-bar {
+    display: flex; align-items: stretch; gap: 0; margin-bottom: 0;
+    border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 4px 0;
+  }
+  .tab-btn {
+    background: transparent; border: 1px solid transparent; border-bottom: none;
+    color: var(--muted); font-family: "DM Mono", monospace; font-size: 0.75rem;
+    padding: 0.55rem 1rem; cursor: pointer; transition: all 0.15s;
+    display: flex; align-items: center; gap: 0.5rem; border-radius: 6px 6px 0 0;
+    position: relative; bottom: -1px; white-space: nowrap;
+  }
+  .tab-btn:hover { color: var(--text); background: var(--surface2); }
+  .tab-btn.active { background: var(--surface); border-color: var(--border); color: var(--accent); }
+  .tab-btn.summary-tab { color: var(--green); }
+  .tab-btn.summary-tab.active { color: var(--green); }
+  .tab-close {
+    background: none; border: none; color: var(--muted); cursor: pointer;
+    font-size: 0.85rem; line-height: 1; padding: 0; transition: color 0.15s;
+  }
+  .tab-close:hover { color: var(--red); }
+  .add-tab-btn {
+    background: none; border: 1px solid var(--border); border-bottom: none;
+    color: var(--muted); font-family: "DM Mono", monospace; font-size: 0.75rem;
+    padding: 0.55rem 0.9rem; cursor: pointer; transition: all 0.15s;
+    border-radius: 6px 6px 0 0; position: relative; bottom: -1px;
+  }
+  .add-tab-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+  /* ── Tab Content ── */
+  .tab-content { display: none; background: var(--surface); border: 1px solid var(--border); border-top: none; border-radius: 0 0 8px 8px; padding: 1.5rem; }
+  .tab-content.active { display: block; }
+
+  /* ── Common controls ── */
+  .controls { display: flex; gap: 1rem; align-items: flex-end; margin-bottom: 1.5rem; flex-wrap: wrap; }
+  .field-group { display: flex; flex-direction: column; gap: 0.35rem; }
+  label { font-size: 0.65rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); }
+  input[type="text"], input[type="number"], select {
+    background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+    font-family: "DM Mono", monospace; font-size: 0.82rem; padding: 0.5rem 0.75rem;
+    border-radius: 4px; outline: none; transition: border-color 0.15s; width: 100%;
+  }
+  input:focus, select:focus { border-color: var(--accent); }
+  .btn {
+    background: var(--accent); color: #0f0e0c; border: none; font-family: "DM Mono", monospace;
+    font-size: 0.78rem; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase;
+    padding: 0.6rem 1.2rem; border-radius: 4px; cursor: pointer;
+    transition: background 0.15s, transform 0.1s; white-space: nowrap; align-self: flex-end;
+  }
+  .btn:hover { background: var(--accent2); }
+  .btn:active { transform: scale(0.97); }
+  .btn.sm { padding: 0.35rem 0.65rem; font-size: 0.68rem; }
+  .btn.ghost { background: var(--surface2); color: var(--muted); border: 1px solid var(--border); }
+  .btn.ghost:hover { color: var(--text); border-color: var(--muted); background: var(--surface2); }
+
+  /* ── People ── */
+  .people-bar { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; align-items: center; }
+  .person-tag {
+    display: flex; align-items: center; gap: 0.4rem; background: var(--bg);
+    border: 1px solid var(--border); border-radius: 100px; padding: 0.3rem 0.5rem 0.3rem 0.8rem;
+  }
+  .person-tag input { background: transparent; border: none; color: var(--text); font-family: "DM Mono", monospace; font-size: 0.75rem; width: 80px; padding: 0; outline: none; }
+  .person-tag .remove-person { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 1rem; line-height: 1; padding: 0 0.1rem; transition: color 0.15s; }
+  .person-tag .remove-person:hover { color: var(--red); }
+
+  /* ── Table ── */
+  .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); margin-bottom: 1rem; }
+  table { width: 100%; border-collapse: collapse; min-width: 600px; }
+  thead tr th {
+    background: var(--surface2); padding: 0.75rem 0.9rem; font-size: 0.65rem; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--muted); font-weight: 400; text-align: left;
+    border-bottom: 1px solid var(--border); white-space: nowrap;
+  }
+  thead tr th.person-col { text-align: center; min-width: 75px; }
+  tbody tr { border-bottom: 1px solid var(--border); transition: background 0.12s; }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: var(--surface2); }
+  tbody td { padding: 0.5rem 0.75rem; font-size: 0.8rem; vertical-align: middle; }
+  tbody td input[type="text"], tbody td input[type="number"] { background: transparent; border: 1px solid transparent; padding: 0.3rem 0.5rem; border-radius: 3px; width: 100%; }
+  tbody td input:hover { border-color: var(--border); }
+  tbody td input:focus { background: var(--surface); border-color: var(--accent); }
+  .amount-cell { color: var(--accent); font-weight: 500; }
+  .per-cell { color: var(--muted); font-size: 0.72rem; }
+  .cb-wrap { display: flex; justify-content: center; }
+  .cb-wrap input[type="checkbox"] { display: none; }
+  .cb-wrap label.cb {
+    width: 22px; height: 22px; border: 1px solid var(--border); border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: background 0.12s, border-color 0.12s; font-size: 0;
+  }
+  .cb-wrap input[type="checkbox"]:checked + label.cb { background: var(--green); border-color: var(--green); font-size: 0.75rem; color: #0f0e0c; }
+  .cb-wrap input[type="checkbox"]:checked + label.cb::after { content: "\2713"; font-weight: 700; }
+  .del-btn { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 0.9rem; transition: color 0.15s; padding: 0.2rem 0.4rem; }
+  .del-btn:hover { color: var(--red); }
+  tfoot tr td { padding: 0.6rem 0.75rem; font-size: 0.78rem; }
+  .total-label { font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); padding: 0.45rem 0.75rem; }
+
+  /* ── Charges panel ── */
+  .section-title {
+    font-size: 0.65rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted);
+    margin: 1.25rem 0 0.75rem; display: flex; align-items: center; gap: 0.75rem;
+  }
+  .section-title::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+  .charges-panel { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.2rem; margin-bottom: 1.5rem; }
+  .charges-grid { display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end; }
+  .charge-item { display: flex; flex-direction: column; gap: 0.3rem; min-width: 180px; }
+  .charge-item .charge-row { display: flex; align-items: center; gap: 0.4rem; }
+  .charge-item input[type="text"] { flex: 1; min-width: 100px; }
+  .charge-item input[type="number"].pct-input { width: 72px; }
+  .charge-item .pct-label { font-size: 0.8rem; color: var(--muted); }
+  .charge-item .charge-amt { font-size: 0.72rem; color: var(--accent); text-align: right; min-height: 1em; }
+  .charge-toggle { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; user-select: none; }
+  .toggle-switch { position: relative; width: 34px; height: 18px; flex-shrink: 0; }
+  .toggle-switch input { display: none; }
+  .toggle-switch .track { position: absolute; inset: 0; background: var(--border); border-radius: 100px; transition: background 0.2s; }
+  .toggle-switch .thumb { position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; background: var(--muted); border-radius: 50%; transition: left 0.2s, background 0.2s; }
+  .toggle-switch input:checked ~ .track { background: var(--accent); }
+  .toggle-switch input:checked ~ .thumb { left: 18px; background: #0f0e0c; }
+  .charges-divider { width: 1px; height: 56px; background: var(--border); align-self: center; }
+  .charges-summary { display: flex; flex-direction: column; gap: 0.25rem; justify-content: center; }
+  .charges-summary .cs-row { display: flex; justify-content: space-between; gap: 1.5rem; font-size: 0.75rem; }
+  .charges-summary .cs-label { color: var(--muted); }
+  .charges-summary .cs-val { color: var(--accent); font-weight: 500; }
+  .charges-summary .cs-total { color: var(--text); font-size: 0.8rem; font-weight: 600; border-top: 1px solid var(--border); padding-top: 0.25rem; margin-top: 0.1rem; }
+  .mode-btn {
+    background: var(--surface2); border: 1px solid var(--border); color: var(--muted);
+    font-family: "DM Mono", monospace; font-size: 0.68rem; font-weight: 500;
+    letter-spacing: 0.06em; padding: 0.28rem 0.6rem; border-radius: 4px;
+    cursor: pointer; transition: all 0.15s; flex-shrink: 0; white-space: nowrap;
+  }
+  .mode-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .mode-btn.is-flat { background: #2a2410; border-color: var(--accent); color: var(--accent); }
+
+  /* ── Summary tab ── */
+  .summary-table { width: 100%; border-collapse: collapse; margin-top: 0.5rem; }
+  .summary-table th {
+    background: var(--surface2); padding: 0.65rem 0.9rem; font-size: 0.65rem;
+    letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted);
+    font-weight: 400; text-align: left; border-bottom: 1px solid var(--border);
+  }
+  .summary-table th.num { text-align: right; }
+  .summary-table td { padding: 0.55rem 0.9rem; font-size: 0.8rem; border-bottom: 1px solid var(--border); }
+  .summary-table td.num { text-align: right; }
+  .summary-table tr:last-child td { border-bottom: none; }
+  .summary-table tr.grand-row td { font-weight: 700; color: var(--accent); border-top: 2px solid var(--border); font-size: 0.85rem; }
+  .summary-table tr.grand-row td.lbl { color: var(--muted); font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; }
+  .rest-name-cell { color: var(--muted); font-size: 0.72rem; }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>Split Bill</h1>
+  </header>
+
+  <!-- Global: Diners + Currency -->
+  <div class="section-title">Peeps</div>
+  <div class="people-bar" id="peoplebar">
+    <button class="btn sm" onclick="addPerson()">+ Add a Peep</button>
+  </div>
+  <div class="controls" style="margin-bottom:1.5rem">
+    <div class="field-group">
+      <label>Currency</label>
+      <select id="currency" onchange="renderAll()">
+        <option value="Rp">IDR (Rp)</option>
+        <option value="$">USD ($)</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Tab Bar -->
+  <div class="tab-bar" id="tabBar">
+    <!-- restaurant tabs injected here -->
+    <button class="add-tab-btn" onclick="addRestaurant()" title="Add restaurant">+ Restaurant</button>
+    <button class="tab-btn summary-tab" id="summaryTabBtn" onclick="switchTab('summary')">&#x03A3; Summary</button>
+  </div>
+
+  <!-- Tab panels injected here -->
+  <div id="tabPanels"></div>
+
+  <!-- Summary panel -->
+  <div class="tab-content" id="tab-summary">
+    <div class="section-title">Total per Peep — All Restaurants</div>
+    <div class="table-wrap">
+      <table class="summary-table" id="summaryTable"></table>
+    </div>
+  </div>
+
+</div>
+<script>
+// ── Global state ────────────────────────────────────────────────────────────
+let people   = ["Peep 1", "Peep 2"];
+let currency = "Rp";
+let nextId   = 1;
+let activeTab = null;
+
+// Each restaurant: { id, name, items, svcMode, taxMode }
+// Charges stored in DOM (inputs) per restaurant panel
+let restaurants = [];
+
+const fmt = n => currency + Math.round(n).toLocaleString("id-ID");
+
+// ── People ──────────────────────────────────────────────────────────────────
+function addPerson() {
+  people.push("Person " + (people.length + 1));
+  restaurants.forEach(r => r.items.forEach(it => it.split.push(false)));
+  renderPeople();
+  renderAll();
+}
+
+function removePerson(i) {
+  if (people.length <= 2) return alert("Need at least 2 people.");
+  people.splice(i, 1);
+  restaurants.forEach(r => {
+    r.items.forEach(it => {
+      it.split.splice(i, 1);
+      if (it.paidBy === i) it.paidBy = 0;
+      else if (it.paidBy > i) it.paidBy--;
+    });
+  });
+  renderPeople();
+  renderAll();
+}
+
+function renderPeople() {
+  const bar = document.getElementById("peoplebar");
+  bar.innerHTML = "";
+
+  people.forEach((name, i) => {
+    const tag = document.createElement("div");
+    tag.className = "person-tag";
+    tag.innerHTML = `
+      <input type="text" value="${name}"
+        oninput="people[${i}]=this.value;syncPeopleHeaders()">
+      <button class="remove-person"
+        onclick="removePerson(${i})">&#xd7;</button>
+    `;
+    bar.appendChild(tag);
+  });
+
+  // Recreate button fresh every time
+  const addBtn = document.createElement("button");
+  addBtn.className = "btn sm";
+  addBtn.textContent = "+ Add a Peep";
+  addBtn.onclick = addPerson;
+
+  bar.appendChild(addBtn);
+}
+
+// ── Restaurants ─────────────────────────────────────────────────────────────
+function addRestaurant(name) {
+  const id = nextId++;
+  const r = {
+    id,
+    name: name || "Restaurant " + (restaurants.length + 1),
+    items: [],
+    svcMode: "pct",
+    taxMode: "pct",
+  };
+  restaurants.push(r);
+  renderTabBar();
+  renderRestaurantPanel(r);
+  switchTab(id);
+  return r;
+}
+
+function removeRestaurant(id) {
+  if (restaurants.length <= 1) return alert("Need at least one restaurant.");
+  restaurants = restaurants.filter(r => r.id !== id);
+  document.getElementById("tab-" + id)?.remove();
+  renderTabBar();
+  switchTab(restaurants[0].id);
+  renderSummary();
+}
+
+function switchTab(id) {
+  activeTab = id;
+  document.querySelectorAll(".tab-content").forEach(el => el.classList.remove("active"));
+  document.querySelectorAll(".tab-btn").forEach(el => el.classList.remove("active"));
+  const panel = document.getElementById("tab-" + id);
+  if (panel) panel.classList.add("active");
+  const btn = document.getElementById("tabBtn-" + id);
+  if (btn) btn.classList.add("active");
+  if (id === "summary") {
+    document.getElementById("tab-summary").classList.add("active");
+    document.getElementById("summaryTabBtn").classList.add("active");
+    renderSummary();
+  }
+}
+
+function renderTabBar() {
+  const bar = document.getElementById("tabBar");
+  const addBtn = bar.querySelector(".add-tab-btn");
+  const summaryBtn = bar.querySelector(".summary-tab");
+  // Remove old restaurant tabs
+  bar.querySelectorAll(".tab-btn:not(.summary-tab)").forEach(el => el.remove());
+  // Re-insert restaurant tabs before addBtn
+  restaurants.forEach(r => {
+    const btn = document.createElement("button");
+    btn.className = "tab-btn" + (activeTab === r.id ? " active" : "");
+    btn.id = "tabBtn-" + r.id;
+    btn.innerHTML = `<span id="tabLabel-${r.id}">${r.name}</span>
+      <button class="tab-close" onclick="event.stopPropagation();removeRestaurant(${r.id})">&#x2715;</button>`;
+    btn.onclick = (e) => { if (!e.target.classList.contains("tab-close")) switchTab(r.id); };
+    bar.insertBefore(btn, addBtn);
+  });
+}
+
+// ── Per-restaurant panel ────────────────────────────────────────────────────
+function renderRestaurantPanel(r) {
+  const panels = document.getElementById("tabPanels");
+  const div = document.createElement("div");
+  div.className = "tab-content";
+  div.id = "tab-" + r.id;
+  div.innerHTML = `
+    <!-- Restaurant name -->
+    <div class="controls" style="margin-bottom:1rem">
+      <div class="field-group" style="flex:1;max-width:320px">
+        <label>Restaurant Name</label>
+        <input type="text" value="${r.name}" oninput="renameRestaurant(${r.id}, this.value)">
+      </div>
+      <button class="btn" onclick="addItem(${r.id})">+ Add Menu Item</button>
+    </div>
+
+    <!-- Charges -->
+    <div class="section-title">Tax &amp; Service Charge</div>
+    <div class="charges-panel">
+      <div class="charges-grid">
+        <div class="charge-item">
+          <label class="charge-toggle">
+            <div class="toggle-switch">
+              <input type="checkbox" id="svcEnabled-${r.id}" checked onchange="renderTotals(${r.id})">
+              <div class="track"></div><div class="thumb"></div>
+            </div>
+            Service Charge
+          </label>
+          <div class="charge-row">
+            <input type="text" id="svcName-${r.id}" value="Service Charge" oninput="renderTotals(${r.id})" style="min-width:120px">
+            <button class="mode-btn" id="svcModeBtn-${r.id}" onclick="toggleMode(${r.id},'svc')" type="button">% pct</button>
+            <input type="number" id="svcPct-${r.id}" value="5" min="0" step="0.5" class="pct-input" oninput="renderTotals(${r.id})">
+            <span id="svcUnit-${r.id}" class="pct-label">%</span>
+          </div>
+          <div class="charge-amt" id="svcAmt-${r.id}"></div>
+        </div>
+        <div class="charges-divider"></div>
+        <div class="charge-item">
+          <label class="charge-toggle">
+            <div class="toggle-switch">
+              <input type="checkbox" id="taxEnabled-${r.id}" checked onchange="renderTotals(${r.id})">
+              <div class="track"></div><div class="thumb"></div>
+            </div>
+            Tax
+          </label>
+          <div class="charge-row">
+            <input type="text" id="taxName-${r.id}" value="Government Tax" oninput="renderTotals(${r.id})" style="min-width:120px">
+            <button class="mode-btn" id="taxModeBtn-${r.id}" onclick="toggleMode(${r.id},'tax')" type="button">% pct</button>
+            <input type="number" id="taxPct-${r.id}" value="10" min="0" step="0.5" class="pct-input" oninput="renderTotals(${r.id})">
+            <span id="taxUnit-${r.id}" class="pct-label">%</span>
+          </div>
+          <div class="charge-amt" id="taxAmt-${r.id}"></div>
+        </div>
+        <div class="charges-divider"></div>
+        <div class="charges-summary" id="chargesSummary-${r.id}"></div>
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div class="table-wrap">
+      <table>
+        <thead id="thead-${r.id}"></thead>
+        <tbody id="tbody-${r.id}"></tbody>
+        <tfoot id="tfoot-${r.id}"></tfoot>
+      </table>
+    </div>
+  `;
+  panels.appendChild(div);
+  renderTable(r.id);
+}
+
+function renameRestaurant(id, name) {
+  const r = restaurants.find(x => x.id === id);
+  if (r) r.name = name;
+  const lbl = document.getElementById("tabLabel-" + id);
+  if (lbl) lbl.textContent = name;
+  renderSummary();
+}
+
+// ── Charges helpers ─────────────────────────────────────────────────────────
+function getCharges(id) {
+  const r = restaurants.find(x => x.id === id);
+  const svcEnabled = document.getElementById("svcEnabled-" + id).checked;
+  const taxEnabled = document.getElementById("taxEnabled-" + id).checked;
+  const svcRaw  = svcEnabled ? (+document.getElementById("svcPct-" + id).value || 0) : 0;
+  const taxRaw  = taxEnabled ? (+document.getElementById("taxPct-" + id).value || 0) : 0;
+  const svcName = document.getElementById("svcName-" + id).value || "Service Charge";
+  const taxName = document.getElementById("taxName-" + id).value || "Tax";
+  const svcPct  = r.svcMode === "pct" ? svcRaw : 0;
+  const taxPct  = r.taxMode === "pct" ? taxRaw : 0;
+  const svcFlat = r.svcMode === "flat" ? svcRaw : 0;
+  const taxFlat = r.taxMode === "flat" ? taxRaw : 0;
+  return { svcPct, taxPct, svcFlat, taxFlat, svcRaw, taxRaw, svcName, taxName, svcEnabled, taxEnabled };
+}
+
+function toggleMode(id, which) {
+  const r = restaurants.find(x => x.id === id);
+  if (which === "svc") {
+    r.svcMode = r.svcMode === "pct" ? "flat" : "pct";
+    const btn  = document.getElementById("svcModeBtn-" + id);
+    const unit = document.getElementById("svcUnit-" + id);
+    const inp  = document.getElementById("svcPct-" + id);
+    btn.textContent = r.svcMode === "pct" ? "% pct" : "flat";
+    btn.classList.toggle("is-flat", r.svcMode === "flat");
+    unit.textContent = r.svcMode === "pct" ? "%" : currency;
+    inp.step = r.svcMode === "pct" ? "0.5" : "1000";
+    inp.value = r.svcMode === "pct" ? "5" : "";
+    inp.placeholder = r.svcMode === "pct" ? "5" : "e.g. 15000";
+  } else {
+    r.taxMode = r.taxMode === "pct" ? "flat" : "pct";
+    const btn  = document.getElementById("taxModeBtn-" + id);
+    const unit = document.getElementById("taxUnit-" + id);
+    const inp  = document.getElementById("taxPct-" + id);
+    btn.textContent = r.taxMode === "pct" ? "% pct" : "flat";
+    btn.classList.toggle("is-flat", r.taxMode === "flat");
+    unit.textContent = r.taxMode === "pct" ? "%" : currency;
+    inp.step = r.taxMode === "pct" ? "0.5" : "1000";
+    inp.value = r.taxMode === "pct" ? "10" : "";
+    inp.placeholder = r.taxMode === "pct" ? "10" : "e.g. 20000";
+  }
+  renderTotals(id);
+}
+
+// ── Items ───────────────────────────────────────────────────────────────────
+function addItem(rid) {
+  const r = restaurants.find(x => x.id === rid);
+  r.items.push({ id: nextId++, name: "Menu Item", price: 0, split: people.map(() => false), paidBy: 0 });
+  renderTable(rid);
+}
+
+function removeItem(rid, iid) {
+  const r = restaurants.find(x => x.id === rid);
+  r.items = r.items.filter(x => x.id !== iid);
+  renderTable(rid);
+}
+
+function perPersonCost(item) {
+  const cnt = item.split.filter(Boolean).length;
+  return cnt ? item.price / cnt : 0;
+}
+
+// ── Calc ─────────────────────────────────────────────────────────────────────
+function calcTotals(rid) {
+  const r = restaurants.find(x => x.id === rid);
+  const { svcPct, taxPct, svcFlat, taxFlat } = getCharges(rid);
+  const spent = people.map(() => 0);
+  const paid  = people.map(() => 0);
+
+  r.items.forEach(item => {
+    const cost = perPersonCost(item);
+    item.split.forEach((checked, pi) => { if (checked) spent[pi] += cost; });
+    paid[item.paidBy] += item.price;
+  });
+
+  const subtotalAll = spent.reduce((a, b) => a + b, 0);
+
+  const svcAmtTotal = r.svcMode === "pct" ? subtotalAll * svcPct / 100 : svcFlat;
+  const svcPer = people.map((_, pi) => {
+    if (svcAmtTotal === 0) return 0;
+    if (r.svcMode === "flat") return subtotalAll > 0 ? (spent[pi] / subtotalAll) * svcAmtTotal : svcAmtTotal / people.length;
+    return subtotalAll > 0 ? (spent[pi] / subtotalAll) * svcAmtTotal : 0;
+  });
+
+  const afterSvc    = spent.map((s, i) => s + svcPer[i]);
+  const afterSvcAll = afterSvc.reduce((a, b) => a + b, 0);
+
+  const taxAmtTotal = r.taxMode === "pct" ? afterSvcAll * taxPct / 100 : taxFlat;
+  const taxPer = people.map((_, pi) => {
+    if (taxAmtTotal === 0) return 0;
+    if (r.taxMode === "flat") return afterSvcAll > 0 ? (afterSvc[pi] / afterSvcAll) * taxAmtTotal : taxAmtTotal / people.length;
+    return afterSvcAll > 0 ? (afterSvc[pi] / afterSvcAll) * taxAmtTotal : 0;
+  });
+
+  const total = afterSvc.map((s, i) => s + taxPer[i]);
+  const paid_total = paid;
+
+  return { spent, paid: paid_total, svcPer, taxPer, afterSvc, total, subtotalAll, svcAmtTotal, taxAmtTotal };
+}
+
+// ── Render Totals (preserves focus) ─────────────────────────────────────────
+function renderTotals(rid) {
+  currency = document.getElementById("currency").value;
+  const r = restaurants.find(x => x.id === rid);
+  const { spent, paid, svcPer, taxPer, afterSvc, total, subtotalAll, svcAmtTotal, taxAmtTotal } = calcTotals(rid);
+  const { svcPct, taxPct, svcName, taxName, svcEnabled, taxEnabled } = getCharges(rid);
+
+  // per-cell updates
+  document.querySelectorAll(`#tbody-${rid} tr[data-id]`).forEach(row => {
+    const item = r.items.find(x => x.id === +row.dataset.id);
+    if (!item) return;
+    const cnt = item.split.filter(Boolean).length;
+    row.querySelector(".per-cell").innerHTML =
+      `${cnt ? fmt(perPersonCost(item)) : "\u2014"}<br><span style="font-size:0.65rem;color:var(--muted)">${cnt} pax</span>`;
+  });
+
+  const afterSvcAll = afterSvc.reduce((a,b) => a+b, 0);
+  const svcLabel = r.svcMode === "pct" ? svcPct + "%" : fmt(svcAmtTotal) + " flat";
+  const taxLabel = r.taxMode === "pct" ? taxPct + "%" : fmt(taxAmtTotal) + " flat";
+  document.getElementById("svcUnit-" + rid).textContent = r.svcMode === "pct" ? "%" : currency;
+  document.getElementById("taxUnit-" + rid).textContent = r.taxMode === "pct" ? "%" : currency;
+  document.getElementById("svcAmt-" + rid).textContent = svcEnabled
+    ? (r.svcMode === "pct" ? `${fmt(svcAmtTotal)} on ${fmt(subtotalAll)} subtotal` : `${fmt(svcAmtTotal)} flat, split proportionally`) : "Disabled";
+  document.getElementById("taxAmt-" + rid).textContent = taxEnabled
+    ? (r.taxMode === "pct" ? `${fmt(taxAmtTotal)} on ${fmt(afterSvcAll)} after service` : `${fmt(taxAmtTotal)} flat, split proportionally`) : "Disabled";
+
+  const grand = total.reduce((a,b) => a+b, 0);
+  document.getElementById("chargesSummary-" + rid).innerHTML =
+    `<div class="cs-row"><span class="cs-label">Subtotal</span><span class="cs-val">${fmt(subtotalAll)}</span></div>` +
+    (svcEnabled ? `<div class="cs-row"><span class="cs-label">${svcName} (${svcLabel})</span><span class="cs-val">+${fmt(svcAmtTotal)}</span></div>` : "") +
+    (taxEnabled ? `<div class="cs-row"><span class="cs-label">${taxName} (${taxLabel})</span><span class="cs-val">+${fmt(taxAmtTotal)}</span></div>` : "") +
+    `<div class="cs-row cs-total"><span class="cs-label">Grand Total</span><span class="cs-val">${fmt(grand)}</span></div>`;
+
+  let tf = "";
+  tf += `<tr style="background:#161512;border-top:1px solid var(--border)"><td colspan="4" class="total-label">Subtotal per Peeps</td>`;
+  spent.forEach(s => tf += `<td class="person-col" style="text-align:center;color:var(--muted)">${fmt(s)}</td>`);
+  tf += `<td></td></tr>`;
+
+  if (svcEnabled) {
+    tf += `<tr style="background:#161512"><td colspan="4" class="total-label">+ ${svcName} (${svcLabel})</td>`;
+    svcPer.forEach(c => tf += `<td class="person-col" style="text-align:center;color:var(--muted);font-size:0.72rem">+${fmt(c)}</td>`);
+    tf += `<td></td></tr>`;
+  }
+  if (svcEnabled && taxEnabled) {
+    tf += `<tr style="background:#161512"><td colspan="4" class="total-label">After Service Charge</td>`;
+    afterSvc.forEach(s => tf += `<td class="person-col" style="text-align:center;color:var(--muted)">${fmt(s)}</td>`);
+    tf += `<td></td></tr>`;
+  }
+  if (taxEnabled) {
+    tf += `<tr style="background:#161512"><td colspan="4" class="total-label">+ ${taxName} (${taxLabel})</td>`;
+    taxPer.forEach(c => tf += `<td class="person-col" style="text-align:center;color:var(--muted);font-size:0.72rem">+${fmt(c)}</td>`);
+    tf += `<td></td></tr>`;
+  }
+  tf += `<tr style="border-top:2px solid var(--border)"><td colspan="4" class="total-label">Total per Peep</td>`;
+  total.forEach(t => tf += `<td class="person-col" style="text-align:center;color:var(--accent);font-weight:500">${fmt(t)}</td>`);
+  tf += `<td></td></tr>`;
+
+  tf += `<tr style="background:var(--surface2)"><td colspan="4" class="total-label">Paid by Peep</td>`;
+  paid.forEach(p => tf += `<td class="person-col" style="text-align:center;color:var(--green)">${fmt(p)}</td>`);
+  tf += `<td></td></tr>`;
+
+  tf += `<tr style="background:#1e1c14;border-top:2px solid var(--border)">
+    <td colspan="4" style="font-size:0.65rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);padding:0.6rem 0.75rem">Grand Total</td>
+    <td colspan="${people.length}" style="font-size:1rem;color:var(--accent);font-weight:700;padding:0.6rem 0.75rem">${fmt(grand)}</td>
+    <td></td></tr>`;
+
+  document.getElementById("tfoot-" + rid).innerHTML = tf;
+  renderSummary();
+}
+
+// ── Render Table (full rebuild) ──────────────────────────────────────────────
+function renderTable(rid) {
+  currency = document.getElementById("currency").value;
+  const r = restaurants.find(x => x.id === rid);
+
+  let th = `<tr><th>Item / Menu</th><th>Price</th><th>Per Peep</th><th>Paid By</th>`;
+  people.forEach(p => th += `<th class="person-col">${p}</th>`);
+  th += `<th></th></tr>`;
+  document.getElementById("thead-" + rid).innerHTML = th;
+
+  let tb = "";
+  r.items.forEach(item => {
+    const cnt = item.split.filter(Boolean).length;
+    tb += `<tr data-id="${item.id}">
+      <td><input type="text" value="${item.name}" oninput="restaurants.find(x=>x.id==${rid}).items.find(x=>x.id==${item.id}).name=this.value"></td>
+      <td class="amount-cell">
+        <input type="number" value="${item.price}" style="color:var(--accent);width:110px"
+          oninput="restaurants.find(x=>x.id==${rid}).items.find(x=>x.id==${item.id}).price=+this.value;renderTotals(${rid})">
+      </td>
+      <td class="per-cell">${cnt ? fmt(perPersonCost(item)) : "\u2014"}<br><span style="font-size:0.65rem;color:var(--muted)">${cnt} pax</span></td>
+      <td><select style="width:100px" onchange="restaurants.find(x=>x.id==${rid}).items.find(x=>x.id==${item.id}).paidBy=+this.value;renderTotals(${rid})">
+        ${people.map((p,i) => `<option value="${i}" ${item.paidBy===i?"selected":""}>${p}</option>`).join("")}
+      </select></td>`;
+    people.forEach((_, pi) => {
+      const cid = `cb_${rid}_${item.id}_${pi}`;
+      tb += `<td><div class="cb-wrap">
+        <input type="checkbox" id="${cid}" ${item.split[pi]?"checked":""}
+          onchange="restaurants.find(x=>x.id==${rid}).items.find(x=>x.id==${item.id}).split[${pi}]=this.checked;renderTotals(${rid})">
+        <label for="${cid}" class="cb"></label>
+      </div></td>`;
+    });
+    tb += `<td><button class="del-btn" onclick="removeItem(${rid},${item.id})">\u2715</button></td></tr>`;
+  });
+  document.getElementById("tbody-" + rid).innerHTML = tb;
+  renderTotals(rid);
+}
+
+// ── Summary tab ──────────────────────────────────────────────────────────────
+function renderSummary() {
+  if (activeTab !== "summary") return;
+  currency = document.getElementById("currency").value;
+
+  // Grand total per person across all restaurants
+  const grandPerPerson = people.map(() => 0);
+  const grandPaid      = people.map(() => 0);
+
+  const rows = restaurants.map(r => {
+    const { total, paid } = calcTotals(r.id);
+    total.forEach((t, i) => grandPerPerson[i] += t);
+    paid.forEach((p, i)  => grandPaid[i] += p);
+    return { r, total, paid };
+  });
+
+  const overallGrand = grandPerPerson.reduce((a,b) => a+b, 0);
+
+  let th = `<thead><tr><th>Restaurant</th>`;
+  people.forEach(p => th += `<th class="num">${p}</th>`);
+  th += `<th class="num">Total</th></tr></thead>`;
+
+  let tb = "<tbody>";
+  rows.forEach(({ r, total }) => {
+    const restTotal = total.reduce((a,b) => a+b, 0);
+    tb += `<tr><td class="rest-name-cell">${r.name}</td>`;
+    total.forEach(t => tb += `<td class="num">${fmt(t)}</td>`);
+    tb += `<td class="num" style="color:var(--accent)">${fmt(restTotal)}</td></tr>`;
+  });
+
+  tb += `</tbody><tfoot><tr class="grand-row"><td class="lbl">Grand Total</td>`;
+  grandPerPerson.forEach(t => tb += `<td class="num">${fmt(t)}</td>`);
+  tb += `<td class="num">${fmt(overallGrand)}</td></tr></tfoot>`;
+
+  document.getElementById("summaryTable").innerHTML = th + tb;
+}
+
+
+
+// ── Sync only the column headers with updated people names (preserves focus) ──
+function syncPeopleHeaders() {
+  restaurants.forEach(r => {
+    const thead = document.getElementById("thead-" + r.id);
+    if (!thead) return;
+    const ths = thead.querySelectorAll("th.person-col");
+    ths.forEach((th, i) => { if (people[i] !== undefined) th.textContent = people[i]; });
+  });
+  // Also sync summary if open
+  if (activeTab === "summary") renderSummary();
+}
+
+// ── Render all restaurants ───────────────────────────────────────────────────
+function renderAll() {
+  currency = document.getElementById("currency").value;
+  restaurants.forEach(r => renderTable(r.id));
+  if (activeTab === "summary") renderSummary();
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+renderPeople();
+addRestaurant("Restaurant 1");
+</script>
+</body>
+</html>
